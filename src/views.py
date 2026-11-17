@@ -74,6 +74,29 @@ def make_views(time, flux, period, t0, duration_hr):
     return normalize(glob).astype(np.float32), normalize(loc).astype(np.float32)
 
 
+def in_transit(time, period, t0, duration_hr):
+    """True within +/- one transit duration of each transit centre."""
+    dur = duration_hr / 24
+    return np.abs((time - t0 + period / 2) % period - period / 2) < dur
+
+
+def views_for_star(time, flux, signals):
+    """Views for every signal on one star. For each signal, the points inside the OTHER
+    signals' transits are dropped first; otherwise in multi-planet systems the other
+    planets' dips land at random phases and can bury a shallow transit."""
+    masks = [in_transit(time, s.tce_period, s.tce_time0bk, s.tce_duration)
+             for s in signals.itertuples()]
+    out = []
+    for i, s in enumerate(signals.itertuples()):
+        others = np.zeros_like(time, dtype=bool)
+        for j, m in enumerate(masks):
+            if j != i:
+                others |= m
+        out.append(make_views(time[~others], flux[~others], s.tce_period, s.tce_time0bk,
+                              s.tce_duration))
+    return out
+
+
 def process_star(args):
     kepid, tces = args
     try:
@@ -82,8 +105,7 @@ def process_star(args):
     except Exception as e:
         return [], [(kepid, f"{type(e).__name__}: {e}")]
     out, errors = [], []
-    for row in tces.itertuples():
-        v = make_views(t, f, row.tce_period, row.tce_time0bk, row.tce_duration)
+    for row, v in zip(tces.itertuples(), views_for_star(t, f, tces)):
         if v is None:
             errors.append((row.tce_id, "empty view"))
         else:

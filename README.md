@@ -39,6 +39,8 @@ python -m src.kepler90                             # 9. try it on Kepler-90 / Ke
 
 Every run appends a row to `results/metrics.csv`, which is where the numbers in the results table above come from.
 
+**Download time:** MAST serves about 4 stars per minute with `--workers 6`, at about 0.5 MB per star. That's about 8 hours for 2,000 stars and about 40 hours for all 9,865 (about 5 GB). The script is resumable, so you can run it overnight in chunks and raise `--max-stars` each time; the same seed means a bigger run extends a smaller one.
+
 ## Project layout
 
 ```
@@ -53,6 +55,7 @@ results/         metrics.csv, test_predictions.csv, figures/
 
 - **No leakage from NASA's own classifier:** the `av_pred_class` and `av_pp_*` columns are never used.
 - **Split by star, not by signal:** a random split would put the same star's noise in both train and test.
+- **Multi-planet stars:** when building one signal's views, points inside the *other* signals' transits on the same star are dropped. Without this, Kepler-90i's ~90 ppm dip is buried by its seven siblings.
 - **Units:** `tce_duration` is in hours, while `tce_period` and `tce_time0bk` are in days.
 - **No accuracy headline:** about 75% of signals are not planets, so always answering "not a planet" already scores about 75% accuracy. AUC and precision/recall are reported instead.
 

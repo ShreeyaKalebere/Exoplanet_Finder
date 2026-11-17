@@ -11,7 +11,7 @@ import argparse
 import shutil
 import tempfile
 import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
@@ -71,7 +71,9 @@ def main():
           f"{len(todo):,} to download")
 
     failures = []
-    with ThreadPoolExecutor(args.workers) as pool:
+    # processes, not threads: lightkurve silences output by swapping sys.stdout globally,
+    # which breaks (closed-file errors) when several threads download at once
+    with ProcessPoolExecutor(args.workers) as pool:
         futures = [pool.submit(download_star, s) for s in todo]
         for f in tqdm(as_completed(futures), total=len(futures), unit="star"):
             kepid, status = f.result()
